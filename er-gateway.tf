@@ -26,7 +26,7 @@ resource "azurerm_express_route_connection" "er_connection" {
     for_each = each.value.routing != null ? [each.value.routing] : []
 
     content {
-      associated_route_table_id = routing.value.associated_route_table_id
+      associated_route_table_id = try(azurerm_virtual_hub_route_table.virtual_hub_route_table[each.value.associated_route_table_key].id, routing.value.associated_route_table_id)
       inbound_route_map_id      = try(routing.value.inbound_route_map_id, null)
       outbound_route_map_id     = try(routing.value.outbound_route_map_id, null)
 
@@ -34,8 +34,14 @@ resource "azurerm_express_route_connection" "er_connection" {
         for_each = routing.value.propagated_route_table != null ? [routing.value.propagated_route_table] : []
 
         content {
-          labels          = try(propagated_route_table.value.labels, [])
-          route_table_ids = try(propagated_route_table.value.route_table_ids, [])
+          labels = try(propagated_route_table.value.labels, [])
+          route_table_ids = coalesce(
+            compact(flatten([
+              for route_table_key in try(propagated_route_table.value.route_table_keys, []) :
+              azurerm_virtual_hub_route_table.virtual_hub_route_table[route_table_key].id
+            ])),
+            try(propagated_route_table.value.route_table_ids, [])
+          )
         }
       }
     }

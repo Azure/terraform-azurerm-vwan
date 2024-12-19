@@ -72,10 +72,12 @@ variable "er_circuit_connections" {
     enable_internet_security             = optional(bool)
     express_route_gateway_bypass_enabled = optional(bool)
     routing = optional(object({
-      associated_route_table_id = string
+      associated_route_table_id  = optional(string)
+      associated_route_table_key = optional(string)
       propagated_route_table = optional(object({
-        route_table_ids = optional(list(string))
-        labels          = optional(list(string))
+        route_table_ids  = optional(list(string))
+        route_table_keys = optional(list(string))
+        labels           = optional(list(string))
       }))
       inbound_route_map_id  = optional(string)
       outbound_route_map_id = optional(string)
@@ -331,6 +333,35 @@ variable "type" {
     condition     = contains(["Basic", "Standard"], var.type)
     error_message = "The Virtual WAN type must be one of the following: `Basic`, `Standard`. `Standard` is the default and recommended."
   }
+}
+
+variable "virtual_hub_route_tables" {
+  type = map(object({
+    name            = string
+    virtual_hub_key = string
+    labels          = optional(list(string))
+    routes = optional(map(object({
+      name                = string
+      destinations        = list(string)
+      destinations_type   = string
+      next_hop            = optional(string)
+      vnet_connection_key = optional(string)
+      next_hop_type       = string
+    })))
+  }))
+  default     = {}
+  description = <<-EOT
+ - `name` - (Required) The name which should be used for Virtual Hub Route Table. Changing this forces a new resource to be created.
+ - `virtual_hub_key` - (Required) The key of the Virtual Hub within which this route table should be created. Changing this forces a new resource to be created.
+ - `labels` - (Optional) List of labels associated with this route table.
+ - `routes` - (Optional) A map of routes in the Virtual Hub Route Table. The map key is deliberately arbitrary to avoid issues where map keys maybe unknown at plan time.
+  - `name` - (Required) The name which should be used for this route.
+  - `destinations` - (Required) A list of destination addresses for this route.
+  - `destinations_type` - (Required) The type of destinations. Possible values are CIDR, ResourceId and Service.
+  - `next_hop` - (Optional) The next hop's resource ID. Required if `vnet_connection_key` is not defined.
+  - `vnet_connection_key` - (Optional) The next hop vnet connection's key. Required if `next_hop` is not defined.
+  - `next_hop_type` - (Optional) The type of next hop. Currently the only possible value is ResourceId. Defaults to ResourceId.
+EOT
 }
 
 variable "virtual_hubs" {
